@@ -1,0 +1,100 @@
+//Task 4 and 5 
+//Import dependencies
+const ecc = require('tiny-secp256k1')
+const { BIP32Factory } = require('bip32')
+const bip32 = BIP32Factory(ecc)
+const bip39 = require('bip39');
+const bitcoin = require('bitcoinjs-lib');
+const fs = require('fs');
+const axios = require('axios');
+
+const explorerAPI = 'https://www.blockcypher.com/';
+
+require('dotenv').config();
+const blockCypherAPI = process.env.BLOCKCYPHER_API;
+const blockCypherToken = process.env.BLOCKCYPHER_TOKEN;
+//const explorerAPI = process.env.BLOCKCYPHER_API;
+const walletStorageFile = 'wallets.json';
+const walletStorage = require(walletStorageFile);
+
+
+//Functions for loading and saving wallets
+function loadWallets() {
+  let wallets = [];
+  if (fs.existsSync(walletStorageFile)) {
+    const data = fs.readFileSync(walletStorageFile, 'utf8');
+    wallets = JSON.parse(data);
+  }
+  return wallets;
+}
+
+function saveWallets(wallets) {
+  fs.writeFileSync(walletStorageFile, JSON.stringify(wallets, null, 2));
+}
+
+
+//Function to get the bitcion balance
+async function getBitcoinBalance(walletIndex) {
+  // ...existing code...
+  const wallets = loadWallets();
+  if (walletIndex < 1 || walletIndex > wallets.length) {
+    console.log('Invalid wallet index');
+    return;
+  }
+
+  const wallet = wallets[walletIndex - 1];
+  const address = wallet.addresses;
+
+    try {
+    const response = await axios.get(`${blockCypherAPI}/v1/btc/test3/addrs/${address}/balance`, {
+      headers: {
+        Authorization: `Token ${blockCypherToken}`,
+      },
+    });
+
+    const balance = response.data.balance;
+    console.log(`Bitcoin Balance of Wallet ${walletIndex}: ${balance} Satoshi`);
+    } 
+    catch (error) {
+    console.log('Error occurred while fetching balance');
+    console.error(error);
+    }
+}
+
+
+async function getBitcoinTransactions(walletIndex) {
+  // ...existing code...
+  const wallets = loadWallets();
+  if (walletIndex < 1 || walletIndex > wallets.length) {
+    console.log('Invalid wallet index');
+    return;
+  }
+
+  const wallet = wallets[walletIndex - 1];
+  const address = wallet.addresses;
+  //const address="bc1qr4jla89rfsmhl5750lr9x9kve3y05xhk05hfre";
+  
+    try {
+    const response = await axios.get(`${blockCypherAPI}/v1/btc/test3/addrs/${address}/full`, {
+      headers: {
+        Authorization: `Token ${blockCypherToken}`,
+      },
+    });
+
+    const transactions = response.data.txs;
+    console.log(`Bitcoin Transactions of Wallet ${walletIndex}:`);
+    transactions.forEach((tx, index) => {
+      console.log(`\nTransaction ${index + 1}:`);
+      console.log(`Hash: ${tx.hash}`);
+      console.log(`Time: ${new Date(tx.received).toLocaleString()}`);
+      console.log(`Confirmations: ${tx.confirmations}`);
+    });
+    } 
+    catch (error) {
+    console.log('Error occurred while fetching transactions');
+    console.error(error);
+    }
+}
+//you may uncomment these to run 
+//getBitcoinBalance(1);
+//getBitcoinTransactions(1);// for a wallet with no transactions it just prints "Bitcoin Transactions of Wallet 1: "

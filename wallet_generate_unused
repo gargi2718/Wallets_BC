@@ -1,0 +1,64 @@
+
+// Task 6 
+const fs = require('fs');
+const axios = require('axios');
+const bip39 = require('bip39');
+const bitcoin = require('bitcoinjs-lib');
+const ecc = require('tiny-secp256k1')
+const { BIP32Factory } = require('bip32')
+// You must wrap a tiny-secp256k1 compatible implementation
+const bip32 = BIP32Factory(ecc)
+
+// Function to get the first unused bitcoin address for a wallet 
+//provide the wallet name in your wallets.json file created from Task 1
+async function getUnusedAddress(walletName) {
+  const walletsData = fs.readFileSync('wallets.json');
+  const wallets = JSON.parse(walletsData);
+
+  const wallet = wallets.find((w) => w.name === walletName);
+  if (!wallet) {
+    console.log(`Wallet '${walletName}' not found.`);
+    return;
+  }
+
+  const transactions = await getTransactions(wallet.addresses);
+  const usedAddresses = new Set();
+  transactions.forEach((tx) => {
+    tx.inputs.forEach((input) => {
+      if (input.addresses.includes(wallet.addresses[0])) {
+        usedAddresses.add(wallet.addresses[0]);
+      }
+    });
+    tx.outputs.forEach((output) => {
+      output.addresses.forEach((address) => {
+        if (wallet.addresses.includes(address)) {
+          usedAddresses.add(address);
+        }
+      });
+    });
+  });
+
+  const unusedAddress = wallet.addresses.find((address) => !usedAddresses.has(address));
+  if (unusedAddress) {
+    console.log(`Unused address for wallet '${walletName}': ${unusedAddress}`);
+  } else {
+    console.log(`No unused address found for wallet '${walletName}'.`);
+  }
+}
+
+// Function to retrieve transactions for the given addresses from BlockCypher API
+async function getTransactions(addresses) {
+  const url = `https://api.blockcypher.com/v1/btc/test3/txs?address=${addresses.join(',')}`;
+  try {
+    const response = await axios.get(url);
+    return response.data;
+  } catch (error) {
+    console.log('Error retrieving transactions:', error.message);
+    return [];
+  }
+}
+
+
+//you may uncomment these to run 
+//getUnusedAddress('alright');
+//getUnusedAddress('hety');

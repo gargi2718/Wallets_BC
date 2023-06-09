@@ -1,0 +1,102 @@
+//Task 1, 2 and 3
+
+//Import dependencies
+const ecc = require('tiny-secp256k1')
+const { BIP32Factory } = require('bip32')
+// You must wrap a tiny-secp256k1 compatible implementation
+const bip32 = BIP32Factory(ecc)
+const axios = require('axios');
+const bip39 = require('bip39');
+const bitcoin = require('bitcoinjs-lib');
+const fs = require('fs');
+require('dotenv').config();
+
+const STORAGE_PATH = './wallets.json'; // Path to the wallets storage file
+const BLOCKCYPHER_API_TOKEN = process.env.BLOCKCYPHER_API_TOKEN; // BlockCypher API Token
+
+// Function to load wallets from storage
+function loadWallets() {
+  try {
+    const walletsData = fs.readFileSync(STORAGE_PATH);
+    return JSON.parse(walletsData);
+  } catch (error) {
+    return [];
+  }
+}
+
+// Function to save wallets to storage
+function saveWallets(wallets) {
+  fs.writeFileSync(STORAGE_PATH, JSON.stringify(wallets));
+}
+
+// Function to generate a new BIP39 wallet with an address
+async function createWallet(name) {
+  const mnemonic = bip39.generateMnemonic();
+  const seed = await bip39.mnemonicToSeed(mnemonic);
+  const root = bip32.fromSeed(seed, bitcoin.networks.testnet);
+  const addressIndex = 0;
+  const node = root.derivePath(`m/44'/1'/0'/0/${addressIndex}`);
+  const { address } = bitcoin.payments.p2pkh({ pubkey: node.publicKey, network: bitcoin.networks.testnet });
+
+  const wallet = {
+    name: name,
+    mnemonic: mnemonic,
+    addresses: [address],
+  };
+
+  const wallets = loadWallets();
+  wallets.push(wallet);
+  saveWallets(wallets);
+  console.log('Wallet created successfully!');
+  console.log('Name:', name);
+  console.log('Mnemonic:', mnemonic);
+  console.log('Address:', address);
+}
+
+// Function to import a wallet from BIP39 mnemonic
+async function importWallet(name, mnemonic) {
+  if (!bip39.validateMnemonic(mnemonic)) {
+    console.log('Invalid mnemonic!');
+    return;
+  }
+
+  const seed = await bip39.mnemonicToSeed(mnemonic);
+  const root = bip32.fromSeed(seed, bitcoin.networks.testnet);
+  const addressIndex = 0;
+  const node = root.derivePath(`m/44'/1'/0'/0/${addressIndex}`);
+  const { address } = bitcoin.payments.p2pkh({ pubkey: node.publicKey, network: bitcoin.networks.testnet });
+
+  const wallet = {
+    name: name,
+    mnemonic: mnemonic,
+    addresses: [address],
+  };
+
+  const wallets = loadWallets();
+  wallets.push(wallet);
+  saveWallets(wallets);
+  console.log('Wallet imported successfully!');
+  console.log('Name:', name);
+  console.log('Mnemonic:', mnemonic);
+  console.log('Address:', address);
+}
+//Function to list all the wallets
+function listWallets() {
+  const wallets = loadWallets();
+
+  if (wallets.length === 0) {
+    console.log('No wallets found!');
+  } else {
+    console.log('List of wallets:');
+    wallets.forEach((wallet) => {
+      console.log('Name:', wallet.name);
+      console.log('Mnemonic:', wallet.mnemonic);
+      console.log('Addresses:', wallet.addresses);
+      console.log('------------------------');
+    });
+  }
+}
+//you may uncomment these to run 
+//createWallet("alright");
+//importWallet("hety",'bright tool father umbrella copy float follow moral drip south outside pulp');
+//listWallets();
